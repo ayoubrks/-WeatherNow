@@ -3,7 +3,7 @@ import { View, StyleSheet, Image, ScrollView } from 'react-native';
 
 import { TextInput, Button, Text, ActivityIndicator, Card } from 'react-native-paper';
 import { getWeather } from '../services/weatherApi';
-import { saveFavorite, getFavorites } from '../services/favorites';
+import { saveFavorite, getFavorites, removeFavorite } from '../services/favorites';
 
 import * as Location from 'expo-location';
 import * as SplashScreen from 'expo-splash-screen';
@@ -146,6 +146,12 @@ export default function HomeScreen({ navigation }) {
       gap: 8,
       marginBottom: 24,
     },
+    favoriteRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+    },
   });
 
   return (
@@ -228,18 +234,23 @@ export default function HomeScreen({ navigation }) {
             </Button>
 
             <Button
-              icon="star"
-              mode={isFav ? 'contained' : 'outlined'}
+              icon={isFav ? 'delete' : 'star'}
+              mode={isFav ? 'outlined' : 'contained'}
               onPress={async () => {
                 if (!user?.uid) return;
-                await saveFavorite(user.uid, weather.name);
-                setIsFav(true);
+                if (!weather?.name) return;
+                if (isFav) {
+                  await removeFavorite(user.uid, weather.name);
+                  setIsFav(false);
+                } else {
+                  await saveFavorite(user.uid, weather.name);
+                  setIsFav(true);
+                }
                 const favs = await getFavorites(user.uid);
                 setFavorites(favs);
               }}
-              disabled={isFav}
               style={{ marginTop: 10 }}>
-              {isFav ? 'Saved' : '⭐ Add to Favorites'}
+              {isFav ? 'Remove from Favorites' : '⭐ Add to Favorites'}
             </Button>
           </>
         )}
@@ -248,15 +259,29 @@ export default function HomeScreen({ navigation }) {
             <Text style={styles.favTitle}>Favorites</Text>
             <View style={styles.favoritesList}>
               {favorites.map((item) => (
-                <Button
-                  key={item}
-                  mode="text"
-                  onPress={async () => {
-                    setCity(item);
-                    await handleSearch(item);
-                  }}>
-                  {item}
-                </Button>
+                <View key={item} style={styles.favoriteRow}>
+                  <Button
+                    mode="text"
+                    onPress={async () => {
+                      setCity(item);
+                      await handleSearch(item);
+                    }}>
+                    {item}
+                  </Button>
+                  <Button
+                    mode="text"
+                    icon="delete"
+                    onPress={async () => {
+                      if (!user?.uid) return;
+                      await removeFavorite(user.uid, item);
+                      const favs = await getFavorites(user.uid);
+                      setFavorites(favs);
+                      if (weather?.name?.toLowerCase() === item.toLowerCase()) {
+                        setIsFav(false);
+                      }
+                    }}
+                  />
+                </View>
               ))}
             </View>
           </>
